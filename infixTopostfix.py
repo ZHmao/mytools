@@ -49,3 +49,31 @@ def infix_to_postfix(expr):
 
 print(infix_to_postfix('A * B + C * D'))
 print(infix_to_postfix('( A + B ) * ( C + D )'))
+
+# calculate postfix
+def postfix_eval(expr):
+    val_stack = Stack()
+    for char in expr:
+        if char in '0123456789':
+            val_stack.push(int(char))
+        elif char == '+':
+            s2 = val_stack.pop()
+            s1 = val_stack.pop()
+            s = s1 + s2
+            val_stack.push(s)
+        elif char == '-':
+            s2 = val_stack.pop()
+            s1 = val_stack.pop()
+            s = s1 -s2
+            val_stack.push(s)
+        elif char == '*':
+            s2 = val_stack.pop()
+            s1 = val_stack.pop()
+            s = s1 * s2
+            val_stack.push(s)
+        elif char == '/':
+            s2 = val_stack.pop()
+            s1 = val_stack.pop()
+            s = s1 / s2
+            val_stack.push(s)
+    return val_stack.pop()
