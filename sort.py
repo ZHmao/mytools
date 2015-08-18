@@ -70,3 +70,34 @@ def insertion_gap_sort(a_list, lst_length, start_position, gap):
             a_list[insert_position] = a_list[insert_position-1]
             insert_position -= 1
         a_list[insert_position] = current_value
+
+
+# merge sort is important
+
+def merge_sort(a_list):
+    length = len(a_list)
+    middle = length // 2
+    if middle > 0:
+        left_half = a_list[:middle]
+        right_half = a_list[middle:]
+        merge_sort(left_half)
+        merge_sort(right_half)
+        i = 0
+        j = 0
+        k = 0
+        while i < len(left_half) and j < len(right_half):
+            if left_half[i] < right_half[j]:
+                a_list[k] = left_half[i]
+                i += 1
+            else:
+                a_list[k] = right_half[j]
+                j += 1
+            k += 1
+        while i < len(left_half):
+            a_list[k] = left_half[i]
+            i += 1
+            k += 1
+        while j < len(right_half):
+            a_list[k] = right_half[j]
+            j += 1
+            k += 1
