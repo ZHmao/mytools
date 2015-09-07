@@ -6,6 +6,18 @@ import cx_Oracle as oracle
 # 这里的字符集要保持与Oracle数据库所使用的一致，否则乱码。
 os.environ['NLS_LANG'] = 'AMERICAN_AMERICA.ZHS16GBK'
 
+# 单据模板表名
+BILL_TEMPLET_TABLE_NAME = [
+	pub_billtemplet,
+	pub_billtemplet_b,
+	pub_billtemplet_t,
+]
+
+# 查询模板表名
+QUERY_TEMPLET_TABLE_NAME = [
+	pub_query_templet,
+	pub_query_condition
+]
 
 #
 def get_where_condition(key, pk_list):
@@ -83,6 +95,16 @@ def get_templet_data(cur, tables, keys, codes):
 					pass
 			else:
 				return None
+	return text
+
+def get_query_templet(cur, codes):
+	keys = ['node_code', 'pk_templet']
+	text = get_templet_data(cur, QUERY_TEMPLET_TABLE_NAME, keys, codes)
+	return text
+
+def get_bill_templet(cur, codes):
+	keys = ['pk_billtypecode', 'pk_billtemplet']
+	text = get_templet_data(cur, BILL_TEMPLET_TABLE_NAME, keys, codes)
 	return text
 
 def get_mete_data():
