@@ -6,6 +6,8 @@ import cx_Oracle as oracle
 # 这里的字符集要保持与Oracle数据库所使用的一致，否则乱码。
 os.environ['NLS_LANG'] = 'AMERICAN_AMERICA.ZHS16GBK'
 
+###########################################################
+
 # 单据模板表名
 BILL_TEMPLET_TABLE_NAME = [
 	pub_billtemplet,
@@ -18,6 +20,68 @@ QUERY_TEMPLET_TABLE_NAME = [
 	pub_query_templet,
 	pub_query_condition
 ]
+
+METEDATA_SQL = [
+	# [1]
+	"select * from md_component where name in {codes}",
+
+	# [2]
+	"select * from md_class where componentid in \
+	(select id from md_component where name in {codes})",
+
+	# [3]
+	"select * from md_table where id in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes}))",
+
+	# [4]
+	"select * from md_accessorpara where id in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes}))",
+
+	# [5]
+	"select * from md_db_relation where endtableid in \
+	(select id from md_table where id in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes})))",
+
+	# [6]
+	"select * from md_association where componentid in \
+	(select id from md_component where name in {codes})",
+
+	# [7]
+	"select * from md_column where tableid in \
+	(select id from md_table where id in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes})))",
+
+	# [8]
+	"select * from md_property where classid in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes}))",
+
+	# [9]
+	"select * from md_ormap where classid in \
+	(select id from md_table where id in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes})))",
+
+	# [10]
+	"select * from md_enumValue where id in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes}))",
+
+	# [11]
+	"select * from md_bizItfMap where classid in \
+	(select id from md_class where componentid in \
+	(select id from md_component where name in {codes}))",
+
+	# [12]
+	"select * from mde_componentinfo where componentcode in {codes}",
+
+]
+
+###########################################################
 
 #
 def get_where_condition(key, pk_list):
@@ -107,7 +171,7 @@ def get_bill_templet(cur, codes):
 	text = get_templet_data(cur, BILL_TEMPLET_TABLE_NAME, keys, codes)
 	return text
 
-def get_mete_data():
+def get_mete_data(cur, codes):
 	pass
 
 def main():
