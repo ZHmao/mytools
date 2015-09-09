@@ -3,83 +3,83 @@
 import os 
 import cx_Oracle as oracle
 
-# ÕâÀïµÄ×Ö·û¼¯Òª±£³ÖÓëOracleÊı¾İ¿âËùÊ¹ÓÃµÄÒ»ÖÂ£¬·ñÔòÂÒÂë¡£
+# è¿™é‡Œçš„å­—ç¬¦é›†è¦ä¿æŒä¸Oracleæ•°æ®åº“æ‰€ä½¿ç”¨çš„ä¸€è‡´ï¼Œå¦åˆ™ä¹±ç ã€‚
 os.environ['NLS_LANG'] = 'AMERICAN_AMERICA.ZHS16GBK'
 
 ###########################################################
 
-# µ¥¾İÄ£°å±íÃû
+# å•æ®æ¨¡æ¿è¡¨å
 BILL_TEMPLET_TABLE_NAME = [
-	pub_billtemplet,
-	pub_billtemplet_b,
-	pub_billtemplet_t,
+	'pub_billtemplet',
+	'pub_billtemplet_b',
+	'pub_billtemplet_t',
 ]
 
-# ²éÑ¯Ä£°å±íÃû
+# æŸ¥è¯¢æ¨¡æ¿è¡¨å
 QUERY_TEMPLET_TABLE_NAME = [
-	pub_query_templet,
-	pub_query_condition
+	'pub_query_templet',
+	'pub_query_condition',
 ]
 
-METEDATA_SQL = [
+METEDATA_SQL = (
 	# [1]
-	"select * from md_component where name in {codes}",
+	("select * from md_component where name in {codes}", "md_component"),
 
 	# [2]
-	"select * from md_class where componentid in \
-	(select id from md_component where name in {codes})",
+	("select * from md_class where componentid in \
+	(select id from md_component where name in {codes})", "md_class"),
 
 	# [3]
-	"select * from md_table where id in \
+	("select * from md_table where id in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes}))",
+	(select id from md_component where name in {codes}))", "md_table"),
 
 	# [4]
-	"select * from md_accessorpara where id in \
+	("select * from md_accessorpara where id in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes}))",
+	(select id from md_component where name in {codes}))", "md_accessorpara"),
 
 	# [5]
-	"select * from md_db_relation where endtableid in \
+	("select * from md_db_relation where endtableid in \
 	(select id from md_table where id in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes})))",
+	(select id from md_component where name in {codes})))", "md_db_relation"),
 
 	# [6]
-	"select * from md_association where componentid in \
-	(select id from md_component where name in {codes})",
+	("select * from md_association where componentid in \
+	(select id from md_component where name in {codes})", "md_association"),
 
 	# [7]
-	"select * from md_column where tableid in \
+	("select * from md_column where tableid in \
 	(select id from md_table where id in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes})))",
+	(select id from md_component where name in {codes})))", "md_column"),
 
 	# [8]
-	"select * from md_property where classid in \
+	("select * from md_property where classid in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes}))",
+	(select id from md_component where name in {codes}))", "md_property"),
 
 	# [9]
-	"select * from md_ormap where classid in \
+	("select * from md_ormap where classid in \
 	(select id from md_table where id in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes})))",
+	(select id from md_component where name in {codes})))", "md_ormap"),
 
 	# [10]
-	"select * from md_enumValue where id in \
+	("select * from md_enumValue where id in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes}))",
+	(select id from md_component where name in {codes}))", "md_enumValue"),
 
 	# [11]
-	"select * from md_bizItfMap where classid in \
+	("select * from md_bizItfMap where classid in \
 	(select id from md_class where componentid in \
-	(select id from md_component where name in {codes}))",
+	(select id from md_component where name in {codes}))", "md_bizItfMap"),
 
 	# [12]
-	"select * from mde_componentinfo where componentcode in {codes}",
+	("select * from mde_componentinfo where componentcode in {codes}", "mde_componentinfo"),
 
-]
+)
 
 ###########################################################
 
@@ -110,7 +110,7 @@ def gen_sql(tables, key, pks):
 
 def get_value_sql_from_origin(result_data):
 	text = "("
-	for value in result:
+	for value in result_data:
 		value_type = type(value)
 		if value_type == str:
 			text = text + "'" + value + "'" + ","
@@ -123,11 +123,11 @@ def get_value_sql_from_origin(result_data):
 	text = text[:-1] + ")"
 	return text
 
-# Ä¬ÈÏtables[0]ÊÇÖ÷±í£¬keys[0]ÊÇÖ÷±í¹Ø¼ü×Ö
+# é»˜è®¤tables[0]æ˜¯ä¸»è¡¨ï¼Œkeys[0]æ˜¯ä¸»è¡¨å…³é”®å­—
 def get_templet_data(cur, tables, keys, codes):
 	text = ""
-	if tables is not None and key is not None and keys is not None:
-		'''¸ù¾İµ¥¾İÀàĞÍ±àÂë²é³öÖ÷Ä£°å'''
+	if tables is not None and keys is not None:
+		'''æ ¹æ®å•æ®ç±»å‹ç¼–ç æŸ¥å‡ºä¸»æ¨¡æ¿'''
 		main_sql = get_sql_head(tables[0])
 		main_sql += get_where_condition(keys[0], codes)
 		cur.execute(main_sql)
@@ -142,12 +142,12 @@ def get_templet_data(cur, tables, keys, codes):
 				text = text + "\n" + first_part + get_value_sql_from_origin(sr) + ";"
 		else:
 			return None
-		'''¸ù¾İÖ÷Ä£°åÖĞµÄpk£¬È¥×ÓÄ£°åÖĞ²é'''
+		'''æ ¹æ®ä¸»æ¨¡æ¿ä¸­çš„pkï¼Œå»å­æ¨¡æ¿ä¸­æŸ¥'''
 		# sql_list = gen_sql(tables[1:], keys[1], pks)
 		sql_condition = get_where_condition(keys[1], pks)
 		for table_name in tables[1:]:
 			exec_sql = get_sql_head(table_name) + sql_condition
-			cur.execute()
+			cur.execute(exec_sql)
 			results = cur.fetchall()
 			if results is not None:
 				all_keys = [column+"," for column in cur.description]
@@ -172,7 +172,17 @@ def get_bill_templet(cur, codes):
 	return text
 
 def get_mete_data(cur, codes):
-	pass
+    text = ""
+    for exec_sql, table_name in METEDATA_SQL:
+        exec_sql = exec_sql.format(codes=codes)
+        cur.execute(exec_sql)
+        results = cur.fetchall()
+        if results is not None:
+            all_keys = [column+"," for column in cur.description]
+            head_part = "insert into " + table_name + " (" + all_keys[:-1] + ") values "
+            for sr in results:
+                text = text + "\n" + head_part + get_value_sql_from_origin(sr) + ";"
+    return text
 
 def main():
 	dsn = oracle.makedsn('ip', 'port', 'orcl')
