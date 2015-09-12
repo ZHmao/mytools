@@ -9,17 +9,17 @@ os.environ['NLS_LANG'] = 'AMERICAN_AMERICA.ZHS16GBK'
 ###########################################################
 
 # 单据模板表名
-BILL_TEMPLET_TABLE_NAME = [
+BILL_TEMPLET_TABLE_NAME = (
     'pub_billtemplet',
     'pub_billtemplet_b',
     'pub_billtemplet_t',
-]
+)
 
 # 查询模板表名
-QUERY_TEMPLET_TABLE_NAME = [
+QUERY_TEMPLET_TABLE_NAME = (
     'pub_query_templet',
     'pub_query_condition',
-]
+)
 
 METEDATA_SQL = (
     # [1]
@@ -134,17 +134,21 @@ def get_templet_data(cur, tables, keys, codes):
         pks = []
         results = cur.fetchall()
         if results:
-            # modify 2015-9-10 查询主表pk名称叫 'ID'
+            # modify 2015-9-11 查询主表pk名称叫 'ID'
+            if tables[0] == 'pub_query_templet':
+                pk_field = 'ID'
+            else:
+                pk_field = keys[1]
             pk_index = -1
             column_desc = cur.description
             for index, cd in enumerate(column_desc):
-                if cd[0] == 'ID':
+                if cd[0] == pk_field:
                     pk_index = index
                     break
             if pk_index == -1:
                 return
             all_keys = [column[0]+"," for column in column_desc]
-            first_part = "insert into " + tables[0] + " (" + "".join(all_keys)[:-1] + ") values "
+            first_part = "insert into " + tables[0] + " (" + "".join(all_keys)[:-1] + ") \n values "
             for sr in results:
                 pks.append(sr[pk_index])
                 text = text + "\n" + first_part + get_value_sql_from_origin(sr) + ";"
@@ -159,45 +163,74 @@ def get_templet_data(cur, tables, keys, codes):
             results = cur.fetchall()
             if results is not None:
                 all_keys = [column[0]+"," for column in cur.description]
-                first_part = "insert into " + table_name + " (" + "".join(all_keys)[:-1] + ") values "
+                first_part = "insert into " + table_name + " (" + "".join(all_keys)[:-1] + ") \n values "
                 for sr in results:
                     text = text + "\n" + first_part + get_value_sql_from_origin(sr) + ";"
                 else:
                     pass
             else:
                 return None
+    """清除原数据，先删除字表中的数据"""
+    delete_text = ""
+    tables.reverse()
+    for table_name in tables:
+        delete_text  = (delete_text + "delete from " + table_name
+                        + " " + get_where_condition(keys[1], pks) + ";\n")
+    text = delete_text + text
     return text
 
 def get_query_templet(cur, codes):
-    keys = ['node_code', 'pk_templet']
-    text = get_templet_data(cur, QUERY_TEMPLET_TABLE_NAME, keys, codes)
+    keys = ['node_code', 'PK_TEMPLET']
+    text = get_templet_data(cur, list(QUERY_TEMPLET_TABLE_NAME), keys, codes)
     return text
 
 def get_bill_templet(cur, codes):
-    keys = ['pk_billtypecode', 'pk_billtemplet']
-    text = get_templet_data(cur, BILL_TEMPLET_TABLE_NAME, keys, codes)
+    keys = ['pk_billtypecode', 'PK_BILLTEMPLET']
+    text = get_templet_data(cur, list(BILL_TEMPLET_TABLE_NAME), keys, codes)
     return text
 
-def get_mete_data(cur, codes):
+def get_mete_data(cur, pks):
     text = ""
+    pk_condition = "("
+    for pk in pks:
+        pk_condition = pk_condition + "'" + pk + "',"
+    pk_condition = pk_condition[:-1] + ")"
     for exec_sql, table_name in METEDATA_SQL:
-        exec_sql = exec_sql.format(codes=codes)
+        exec_sql = exec_sql.format(codes=pk_condition)
         cur.execute(exec_sql)
         results = cur.fetchall()
         if results is not None:
-            all_keys = [column+"," for column in cur.description]
-            head_part = "insert into " + table_name + " (" + all_keys[:-1] + ") values "
+            all_keys = [column[0]+"," for column in cur.description]
+            head_part = "insert into " + table_name + " (" + "".join(all_keys)[:-1] + ") \n values "
             for sr in results:
                 text = text + "\n" + head_part + get_value_sql_from_origin(sr) + ";"
+    """清除原数据，先删除字表中的数据"""
+    delete_text = ""
+    all_sql = list(METEDATA_SQL)
+    all_sql.reverse()
+    for single in all_sql:
+        single = list(single)
+        single[0] = single[0].replace("select *", "delete")
+        single[0] = single[0].format(codes=pk_condition)
+        delete_text = delete_text + single[0] + ";\n"
+    text = delete_text + text
     return text
 
 def main():
-    dsn = oracle.makedsn('', '', '')
-    conn = oracle.connect('', '', dsn)
+    data_src_ip = ''
+    data_src_port = ''
+    data_src_instance = ''
+    usr_name = ''
+    usr_password = ''
+    dsn = oracle.makedsn(data_src_ip, data_src_port, data_src_instance)
+    conn = oracle.connect(usr_name, usr_password, dsn)
     cur = conn.cursor()
-    text = get_query_templet(cur, ['DYH10106','DYH30101'])
+    # query_templet_text = get_query_templet(cur, ['DYH10106','DYH30101'])
+    # bill_templet_text = get_bill_templet(cur, ['MC08'])
+    mete_text = get_mete_data(cur, ['sampleflowcard'])
     with open('test.sql', 'w') as fw:
-        fw.write(text)
+        fw.write(mete_text)
+    
 
 if __name__ == '__main__':
     main()
