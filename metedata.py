@@ -2,11 +2,14 @@
 
 import os 
 import cx_Oracle as oracle
+import logging
 
 # 这里的字符集要保持与Oracle数据库所使用的一致，否则乱码。
 os.environ['NLS_LANG'] = 'AMERICAN_AMERICA.ZHS16GBK'
 
 ###########################################################
+
+logger_instance = None
 
 # 单据模板表名
 BILL_TEMPLET_TABLE_NAME = (
@@ -217,20 +220,37 @@ def get_mete_data(cur, pks):
     return text
 
 def main():
+    logging.basicConfig(filename=os.path.join(os.getcwd(), 'metedatalog.txt'),
+                        level=logging.INFO,
+                        format='[%(lineno)s] - %(message)s')    
+    logger_instance = logging.getLogger()
+    logger_instance.setLevel(logging.INFO)
+    logger_instance.info('=============================================')
+    logger_instance.info('================Start========================')
+    logger_instance.info('=============================================')
+    logger_instance.info('=============================================')
+    
     data_src_ip = ''
     data_src_port = ''
     data_src_instance = ''
     usr_name = ''
     usr_password = ''
     dsn = oracle.makedsn(data_src_ip, data_src_port, data_src_instance)
-    conn = oracle.connect(usr_name, usr_password, dsn)
-    cur = conn.cursor()
+    try:
+        conn = oracle.connect(usr_name, usr_password, dsn)
+        cur = conn.cursor()
+    except oracle.DatabaseError, exc:
+        error, = exc.args
+        logger_instance.info(u'数据库连接出错')
+        logger_instance.info('Oracle-Error-Code: {}'.format(error.code))
+        logger_instance.info('Oracle-Error-Msg: {}'.format(error.message))
+        return
     # query_templet_text = get_query_templet(cur, ['DYH10106','DYH30101'])
     # bill_templet_text = get_bill_templet(cur, ['MC08'])
     mete_text = get_mete_data(cur, ['sampleflowcard'])
     with open('test.sql', 'w') as fw:
         fw.write(mete_text)
-    
+    logger_instance.info('================ End ========================')
 
 if __name__ == '__main__':
     main()
