@@ -3,6 +3,7 @@
 import os 
 import cx_Oracle as oracle
 import logging
+import datetime
 
 # 这里的字符集要保持与Oracle数据库所使用的一致，否则乱码。
 os.environ['NLS_LANG'] = 'AMERICAN_AMERICA.ZHS16GBK'
@@ -128,6 +129,8 @@ def get_value_sql_from_origin(result_data):
 
 # 默认tables[0]是主表，keys[0]是主表关键字
 def get_templet_data(cur, tables, keys, codes):
+    global logger_instance
+    
     text = ""
     if tables is not None and keys is not None:
         """根据单据类型编码查出主模板"""
@@ -156,6 +159,7 @@ def get_templet_data(cur, tables, keys, codes):
                 pks.append(sr[pk_index])
                 text = text + "\n" + first_part + get_value_sql_from_origin(sr) + ";"
         else:
+            logger_instance.info(u'该表[{}]中没有数据！'.format(tables[0]))
             return None
         """根据主模板中的pk，去子模板中查"""
         # sql_list = gen_sql(tables[1:], keys[1], pks)
@@ -164,14 +168,13 @@ def get_templet_data(cur, tables, keys, codes):
             exec_sql = get_sql_head(table_name) + sql_condition
             cur.execute(exec_sql)
             results = cur.fetchall()
-            if results is not None:
+            if results:
                 all_keys = [column[0]+"," for column in cur.description]
                 first_part = "insert into " + table_name + " (" + "".join(all_keys)[:-1] + ") \n values "
                 for sr in results:
                     text = text + "\n" + first_part + get_value_sql_from_origin(sr) + ";"
-                else:
-                    pass
             else:
+                logger_instance.info(u'该表[{}]中没有数据！'.format(table_name))
                 return None
     """清除原数据，先删除字表中的数据"""
     delete_text = ""
@@ -183,16 +186,29 @@ def get_templet_data(cur, tables, keys, codes):
     return text
 
 def get_query_templet(cur, codes):
+    global logger_instance
+    logger_instance.info(u'========查询模板========')
+    
     keys = ['node_code', 'PK_TEMPLET']
     text = get_templet_data(cur, list(QUERY_TEMPLET_TABLE_NAME), keys, codes)
+    if text:
+        logger_instance.info(u'完成!')
     return text
 
 def get_bill_templet(cur, codes):
+    global logger_instance
+    logger_instance.info(u'========单据模板========')
+    
     keys = ['pk_billtypecode', 'PK_BILLTEMPLET']
     text = get_templet_data(cur, list(BILL_TEMPLET_TABLE_NAME), keys, codes)
+    if text:
+        logger_instance.info(u'完成!')
     return text
 
 def get_mete_data(cur, pks):
+    global logger_instance
+    logger_instance.info(u'=========元数据========')
+    
     text = ""
     pk_condition = "("
     for pk in pks:
@@ -207,6 +223,9 @@ def get_mete_data(cur, pks):
             head_part = "insert into " + table_name + " (" + "".join(all_keys)[:-1] + ") \n values "
             for sr in results:
                 text = text + "\n" + head_part + get_value_sql_from_origin(sr) + ";"
+            logger_instance.info(table_name)
+        else:
+            logger_instance.info('{} is empty!'.format(table_name))
     """清除原数据，先删除字表中的数据"""
     delete_text = ""
     all_sql = list(METEDATA_SQL)
@@ -217,17 +236,21 @@ def get_mete_data(cur, pks):
         single[0] = single[0].format(codes=pk_condition)
         delete_text = delete_text + single[0] + ";\n"
     text = delete_text + text
+    if text:
+        logger_instance.info(u'完成!')
     return text
 
 def main():
+    global logger_instance
     logging.basicConfig(filename=os.path.join(os.getcwd(), 'metedatalog.txt'),
                         level=logging.INFO,
                         format='[%(lineno)s] - %(message)s')    
     logger_instance = logging.getLogger()
     logger_instance.setLevel(logging.INFO)
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logger_instance.info('=============================================')
     logger_instance.info('================Start========================')
-    logger_instance.info('=============================================')
+    logger_instance.info('========={}================'.format(now))
     logger_instance.info('=============================================')
     
     data_src_ip = ''
@@ -245,11 +268,15 @@ def main():
         logger_instance.info('Oracle-Error-Code: {}'.format(error.code))
         logger_instance.info('Oracle-Error-Msg: {}'.format(error.message))
         return
-    # query_templet_text = get_query_templet(cur, ['DYH10106','DYH30101'])
-    # bill_templet_text = get_bill_templet(cur, ['MC08'])
+
+    logger_instance.info(u'--数据库连接成功！')    
+    
+    query_templet_text = get_query_templet(cur, ['DYH20302'])
+    bill_templet_text = get_bill_templet(cur, ['MC08'])
     mete_text = get_mete_data(cur, ['sampleflowcard'])
     with open('test.sql', 'w') as fw:
-        fw.write(mete_text)
+        fw.write(mete_text+bill_templet_text+query_templet_text)
+
     logger_instance.info('================ End ========================')
 
 if __name__ == '__main__':
